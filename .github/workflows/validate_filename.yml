@@ -10,41 +10,39 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Get list of changed files
-        id: files
-        run: |
-          echo "files=$(jq -r '.pull_request.files[].filename' "$GITHUB_EVENT_PATH")" >> $GITHUB_OUTPUT
+      # Use a helper action to get the list of changed files
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
 
       - name: Validate filenames in work-in-progress folders
-        id: validate
         run: |
           STATUS=0
-          echo "Checking filenames..."
+          echo "Checking filenames in work-in-progress..."
 
-          # Regex for allowed filenames:
+          # Allowed pattern:
           #   Author or Authors (e.g. Maaz or Maaz&Ryan)
           #   _PT_ or _SCR_
           #   Title (letters, digits, underscores, hyphens)
+          #   Ends with .tex
           REGEX='^[A-Za-z&]+_(PT|SCR)_[A-Za-z0-9_\-]+\.tex$'
 
-          while read -r file; do
-            # Only check files inside a project’s work-in-progress folder
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            # Only care about files in any project's work-in-progress folder
             if [[ "$file" == Trimester_3_2025/*/work-in-progress/* ]]; then
               filename=$(basename "$file")
-
               echo "Found file: $filename"
 
               if [[ ! $filename =~ $REGEX ]]; then
-                echo "❌ Invalid filename: $filename"
-                echo "File does NOT follow AppAttack naming convention."
+                echo "::error title=Invalid filename::${filename} does not follow AppAttack naming convention."
                 STATUS=1
               else
-                echo "✓ Valid: $filename"
+                echo "✓ Valid filename: $filename"
               fi
             fi
-          done <<< "$(echo -e "${{ steps.files.outputs.files }}")"
+          done
 
           exit $STATUS
 
@@ -57,7 +55,7 @@ jobs:
 
       - name: Comment on PR with instructions
         if: failure()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -69,12 +67,13 @@ jobs:
 ❌ **AppAttack QA Failed: Invalid Filename Detected**
 
 Your filename does not follow the required naming format:
+
 \`Name_PT_Title.tex\`  
-or  
 \`Name_SCR_Title.tex\`  
 or  
 \`Name1&Name2_PT_Title.tex\`
 
-Please rename the file correctly and push the changes again.
+Please rename the file correctly (no spaces in the name, only letters/& in author part, and letters/digits/_/- in title),
+then push your changes again.
               `
             })
