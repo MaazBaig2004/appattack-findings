@@ -1,0 +1,80 @@
+name: Validate Finding Filename
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate-name:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Get list of changed files
+        id: files
+        run: |
+          echo "files=$(jq -r '.pull_request.files[].filename' "$GITHUB_EVENT_PATH")" >> $GITHUB_OUTPUT
+
+      - name: Validate filenames in work-in-progress folders
+        id: validate
+        run: |
+          STATUS=0
+          echo "Checking filenames..."
+
+          # Regex for allowed filenames:
+          #   Author or Authors (e.g. Maaz or Maaz&Ryan)
+          #   _PT_ or _SCR_
+          #   Title (letters, digits, underscores, hyphens)
+          REGEX='^[A-Za-z&]+_(PT|SCR)_[A-Za-z0-9_\-]+\.tex$'
+
+          while read -r file; do
+            # Only check files inside a project’s work-in-progress folder
+            if [[ "$file" == Trimester_3_2025/*/work-in-progress/* ]]; then
+              filename=$(basename "$file")
+
+              echo "Found file: $filename"
+
+              if [[ ! $filename =~ $REGEX ]]; then
+                echo "❌ Invalid filename: $filename"
+                echo "File does NOT follow AppAttack naming convention."
+                STATUS=1
+              else
+                echo "✓ Valid: $filename"
+              fi
+            fi
+          done <<< "$(echo -e "${{ steps.files.outputs.files }}")"
+
+          exit $STATUS
+
+      - name: Add QA Failed label if invalid
+        if: failure()
+        uses: actions-ecosystem/action-add-labels@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: qa-failed
+
+      - name: Comment on PR with instructions
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `
+❌ **AppAttack QA Failed: Invalid Filename Detected**
+
+Your filename does not follow the required naming format:
+\`Name_PT_Title.tex\`  
+or  
+\`Name_SCR_Title.tex\`  
+or  
+\`Name1&Name2_PT_Title.tex\`
+
+Please rename the file correctly and push the changes again.
+              `
+            })
