@@ -1,0 +1,210 @@
+name: Move finding files based on workflow labels
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  move-to-ready-for-review:
+    if: github.event.label.name == 'ready-for-review'
+    runs-on: ubuntu-latest
+    env:
+      BRANCH_NAME: ${{ github.head_ref }}
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Move from work-in-progress → ready-for-review
+        run: |
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
+
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/work-in-progress/* ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              echo "Moving $FILENAME for project $PROJECT to ready-for-review"
+              mkdir -p "Trimester_3_2025/$PROJECT/ready-for-review"
+              git mv "$file" "Trimester_3_2025/$PROJECT/ready-for-review/$FILENAME"
+            fi
+          done
+
+          if git status --porcelain | grep .; then
+            git config --global user.name "github-actions"
+            git config --global user.email "github-actions@github.com"
+            git commit -m "Move finding to ready-for-review"
+            git push origin HEAD:"$BRANCH_NAME"
+          else
+            echo "No files to move."
+          fi
+
+  move-to-feedback:
+    if: github.event.label.name == 'feedback-to-be-addressed'
+    runs-on: ubuntu-latest
+    env:
+      BRANCH_NAME: ${{ github.head_ref }}
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Move from ready-for-review → feedback-to-be-addressed
+        run: |
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
+
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/ready-for-review/* ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              echo "Moving $FILENAME for project $PROJECT to feedback-to-be-addressed"
+              mkdir -p "Trimester_3_2025/$PROJECT/feedback-to-be-addressed"
+              git mv "$file" "Trimester_3_2025/$PROJECT/feedback-to-be-addressed/$FILENAME"
+            fi
+          done
+
+          if git status --porcelain | grep .; then
+            git config --global user.name "github-actions"
+            git config --global user.email "github-actions@github.com"
+            git commit -m "Move finding to feedback-to-be-addressed"
+            git push origin HEAD:"$BRANCH_NAME"
+          else
+            echo "No files to move."
+          fi
+
+  move-to-qa-failed:
+    if: github.event.label.name == 'qa-failed'
+    runs-on: ubuntu-latest
+    env:
+      BRANCH_NAME: ${{ github.head_ref }}
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Move from ready-for-review → qa-failed
+        run: |
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
+
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/ready-for-review/* ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              echo "Moving $FILENAME for project $PROJECT to qa-failed"
+              mkdir -p "Trimester_3_2025/$PROJECT/qa-failed"
+              git mv "$file" "Trimester_3_2025/$PROJECT/qa-failed/$FILENAME"
+            fi
+          done
+
+          if git status --porcelain | grep .; then
+            git config --global user.name "github-actions"
+            git config --global user.email "github-actions@github.com"
+            git commit -m "Move finding to qa-failed"
+            git push origin HEAD:"$BRANCH_NAME"
+          else
+            echo "No files to move."
+          fi
+
+  move-to-ready-for-final:
+    if: github.event.label.name == 'ready-for-final-report'
+    runs-on: ubuntu-latest
+    env:
+      BRANCH_NAME: ${{ github.head_ref }}
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Move from ready-for-review → ready-for-final-report
+        run: |
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
+
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/ready-for-review/* ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              echo "Moving $FILENAME for project $PROJECT to ready-for-final-report"
+              mkdir -p "Trimester_3_2025/$PROJECT/ready-for-final-report"
+              git mv "$file" "Trimester_3_2025/$PROJECT/ready-for-final-report/$FILENAME"
+            fi
+          done
+
+          if git status --porcelain | grep .; then
+            git config --global user.name "github-actions"
+            git config --global user.email "github-actions@github.com"
+            git commit -m "Move finding to ready-for-final-report"
+            git push origin HEAD:"$BRANCH_NAME"
+          else
+            echo "No files to move."
+          fi
+
+  move-to-archived:
+    if: github.event.label.name == 'archived'
+    runs-on: ubuntu-latest
+    env:
+      BRANCH_NAME: ${{ github.head_ref }}
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Move from ready-for-final-report → archived
+        run: |
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
+
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/ready-for-final-report/* ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              echo "Moving $FILENAME for project $PROJECT to archived"
+              mkdir -p "Trimester_3_2025/$PROJECT/archived"
+              git mv "$file" "Trimester_3_2025/$PROJECT/archived/$FILENAME"
+            fi
+          done
+
+          if git status --porcelain | grep .; then
+            git config --global user.name "github-actions"
+            git config --global user.email "github-actions@github.com"
+            git commit -m "Archive finding"
+            git push origin HEAD:"$BRANCH_NAME"
+          else
+            echo "No files to move."
+          fi
