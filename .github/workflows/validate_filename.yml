@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   validate-name:
     runs-on: ubuntu-latest
@@ -11,13 +15,31 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # Use a helper action to get the list of changed files
-      - name: Get changed files
-        id: changed-files
-        uses: tj-actions/changed-files@v45
+      - name: Get list of changed files
+        id: diff
+        run: |
+          # Get the base branch for this PR (e.g. main)
+          BASE_REF="${{ github.base_ref }}"
+          echo "Base ref: $BASE_REF"
+
+          # Fetch base branch so we can diff against it
+          git fetch origin "$BASE_REF"
+
+          # List files changed in this PR compared to base
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE_REF"...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Expose to later steps
+          echo "CHANGED_FILES<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Validate filenames in work-in-progress folders
+        id: validate
         run: |
           STATUS=0
           echo "Checking filenames in work-in-progress..."
@@ -29,51 +51,8 @@ jobs:
           #   Ends with .tex
           REGEX='^[A-Za-z&]+_(PT|SCR)_[A-Za-z0-9_\-]+\.tex$'
 
-          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            # Only care about files in any project's work-in-progress folder
-            if [[ "$file" == Trimester_3_2025/*/work-in-progress/* ]]; then
-              filename=$(basename "$file")
-              echo "Found file: $filename"
+          CHANGED_FILES="${{ steps.diff.outputs.CHANGED_FILES }}"
 
-              if [[ ! $filename =~ $REGEX ]]; then
-                echo "::error title=Invalid filename::${filename} does not follow AppAttack naming convention."
-                STATUS=1
-              else
-                echo "✓ Valid filename: $filename"
-              fi
-            fi
-          done
-
-          exit $STATUS
-
-      - name: Add QA Failed label if invalid
-        if: failure()
-        uses: actions-ecosystem/action-add-labels@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          labels: qa-failed
-
-      - name: Comment on PR with instructions
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `
-❌ **AppAttack QA Failed: Invalid Filename Detected**
-
-Your filename does not follow the required naming format:
-
-\`Name_PT_Title.tex\`  
-\`Name_SCR_Title.tex\`  
-or  
-\`Name1&Name2_PT_Title.tex\`
-
-Please rename the file correctly (no spaces in the name, only letters/& in author part, and letters/digits/_/- in title),
-then push your changes again.
-              `
-            })
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files detected."
+            echo "invalid=false" >>
