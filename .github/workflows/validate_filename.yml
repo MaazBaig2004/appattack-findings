@@ -4,10 +4,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   validate-name:
     runs-on: ubuntu-latest
@@ -18,10 +14,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get list of changed files
-        id: diff
+      - name: Validate filenames in work-in-progress folders
         run: |
-          # Get the base branch for this PR (e.g. main)
+          STATUS=0
+          echo "Checking filenames in work-in-progress..."
+
+          # Base branch for this PR (e.g. main)
           BASE_REF="${{ github.base_ref }}"
           echo "Base ref: $BASE_REF"
 
@@ -33,26 +31,34 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          # Expose to later steps
-          echo "CHANGED_FILES<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Validate filenames in work-in-progress folders
-        id: validate
-        run: |
-          STATUS=0
-          echo "Checking filenames in work-in-progress..."
-
-          # Allowed pattern:
+          # Allowed filename pattern:
           #   Author or Authors (e.g. Maaz or Maaz&Ryan)
           #   _PT_ or _SCR_
           #   Title (letters, digits, underscores, hyphens)
           #   Ends with .tex
-          REGEX='^[A-Za-z&]+_(PT|SCR)_[A-Za-z0-9_\-]+\.tex$'
-
-          CHANGED_FILES="${{ steps.diff.outputs.CHANGED_FILES }}"
+          REGEX='^[A-Za-z&]+_(PT|SCR)_[A-Za-z0-9_-]+\.tex$'
 
           if [ -z "$CHANGED_FILES" ]; then
-            echo "No changed files detected."
-            echo "invalid=false" >>
+            echo "No changed files."
+            exit 0
+          fi
+
+          # Loop through changed files
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+
+            # Only care about files in Trimester_3_2025/*/work-in-progress/
+            if [[ "$file" == Trimester_3_2025/*/work-in-progress/* ]]; then
+              filename=$(basename "$file")
+              echo "Found file in WIP: $filename"
+
+              if [[ ! "$filename" =~ $REGEX ]]; then
+                echo "::error title=Invalid filename::${filename} does not follow AppAttack naming convention."
+                STATUS=1
+              else
+                echo "✓ Valid filename: $filename"
+              fi
+            fi
+          done <<< "$CHANGED_FILES"
+
+          exit $STATUS
