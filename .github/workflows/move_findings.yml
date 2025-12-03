@@ -8,10 +8,11 @@ permissions:
   contents: write
   pull-requests: read
 
-# This script logic is the same for all jobs:
-#  - find any .tex finding file under Trimester_3_2025/*/<any-stage>/
-#  - move it to the folder that matches TARGET_DIR
-#  - commit + push the move
+# Each job:
+#  - runs when a specific label is added
+#  - finds ONLY the .tex files changed in THIS PR
+#  - moves them to the folder matching TARGET_DIR
+#  - commits & pushes back to the PR branch
 
 jobs:
   move-to-work-in-progress:
@@ -29,34 +30,33 @@ jobs:
 
       - name: Move finding to work-in-progress
         run: |
-          # Find any .tex finding file in any stage folder
-          FILES=$(git ls-files \
-            "Trimester_3_2025/*/work-in-progress/*.tex" \
-            "Trimester_3_2025/*/ready-for-review/*.tex" \
-            "Trimester_3_2025/*/feedback-to-be-addressed/*.tex" \
-            "Trimester_3_2025/*/qa-failed/*.tex" \
-            "Trimester_3_2025/*/ready-for-final-report/*.tex" \
-            "Trimester_3_2025/*/archived/*.tex" || true)
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
 
-          echo "Found files:"
-          echo "$FILES"
+          # Files changed in THIS PR compared to base (e.g. main)
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
 
-          if [ -z "$FILES" ]; then
-            echo "No finding files found."
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files in this PR."
             exit 0
           fi
 
-          for file in $FILES; do
-            PROJECT=$(echo "$file" | cut -d'/' -f2)
-            FILENAME=$(basename "$file")
-            DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+          for file in $CHANGED_FILES; do
+            # Only consider .tex findings under Trimester_3_2025
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
 
-            echo "Moving $file → $DEST"
-            mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-            if [ "$file" != "$DEST" ]; then
-              git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-            else
-              echo "File already in target folder."
+              echo "Moving $file → $DEST"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$file" != "$DEST" ]; then
+                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
+              else
+                echo "File already in target folder."
+              fi
             fi
           done
 
@@ -84,33 +84,31 @@ jobs:
 
       - name: Move finding to ready-for-review
         run: |
-          FILES=$(git ls-files \
-            "Trimester_3_2025/*/work-in-progress/*.tex" \
-            "Trimester_3_2025/*/ready-for-review/*.tex" \
-            "Trimester_3_2025/*/feedback-to-be-addressed/*.tex" \
-            "Trimester_3_2025/*/qa-failed/*.tex" \
-            "Trimester_3_2025/*/ready-for-final-report/*.tex" \
-            "Trimester_3_2025/*/archived/*.tex" || true)
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
 
-          echo "Found files:"
-          echo "$FILES"
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
 
-          if [ -z "$FILES" ]; then
-            echo "No finding files found."
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files in this PR."
             exit 0
           fi
 
-          for file in $FILES; do
-            PROJECT=$(echo "$file" | cut -d'/' -f2)
-            FILENAME=$(basename "$file")
-            DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
 
-            echo "Moving $file → $DEST"
-            mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-            if [ "$file" != "$DEST" ]; then
-              git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-            else
-              echo "File already in target folder."
+              echo "Moving $file → $DEST"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$file" != "$DEST" ]; then
+                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
+              else
+                echo "File already in target folder."
+              fi
             fi
           done
 
@@ -138,33 +136,31 @@ jobs:
 
       - name: Move finding to feedback-to-be-addressed
         run: |
-          FILES=$(git ls-files \
-            "Trimester_3_2025/*/work-in-progress/*.tex" \
-            "Trimester_3_2025/*/ready-for-review/*.tex" \
-            "Trimester_3_2025/*/feedback-to-be-addressed/*.tex" \
-            "Trimester_3_2025/*/qa-failed/*.tex" \
-            "Trimester_3_2025/*/ready-for-final-report/*.tex" \
-            "Trimester_3_2025/*/archived/*.tex" || true)
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
 
-          echo "Found files:"
-          echo "$FILES"
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
 
-          if [ -z "$FILES" ]; then
-            echo "No finding files found."
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files in this PR."
             exit 0
           fi
 
-          for file in $FILES; do
-            PROJECT=$(echo "$file" | cut -d'/' -f2)
-            FILENAME=$(basename "$file")
-            DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
 
-            echo "Moving $file → $DEST"
-            mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-            if [ "$file" != "$DEST" ]; then
-              git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-            else
-              echo "File already in target folder."
+              echo "Moving $file → $DEST"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$file" != "$DEST" ]; then
+                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
+              else
+                echo "File already in target folder."
+              fi
             fi
           done
 
@@ -192,33 +188,31 @@ jobs:
 
       - name: Move finding to qa-failed
         run: |
-          FILES=$(git ls-files \
-            "Trimester_3_2025/*/work-in-progress/*.tex" \
-            "Trimester_3_2025/*/ready-for-review/*.tex" \
-            "Trimester_3_2025/*/feedback-to-be-addressed/*.tex" \
-            "Trimester_3_2025/*/qa-failed/*.tex" \
-            "Trimester_3_2025/*/ready-for-final-report/*.tex" \
-            "Trimester_3_2025/*/archived/*.tex" || true)
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
 
-          echo "Found files:"
-          echo "$FILES"
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
 
-          if [ -z "$FILES" ]; then
-            echo "No finding files found."
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files in this PR."
             exit 0
           fi
 
-          for file in $FILES; do
-            PROJECT=$(echo "$file" | cut -d'/' -f2)
-            FILENAME=$(basename "$file")
-            DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
 
-            echo "Moving $file → $DEST"
-            mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-            if [ "$file" != "$DEST" ]; then
-              git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-            else
-              echo "File already in target folder."
+              echo "Moving $file → $DEST"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$file" != "$DEST" ]; then
+                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
+              else
+                echo "File already in target folder."
+              fi
             fi
           done
 
@@ -246,33 +240,31 @@ jobs:
 
       - name: Move finding to ready-for-final-report
         run: |
-          FILES=$(git ls-files \
-            "Trimester_3_2025/*/work-in-progress/*.tex" \
-            "Trimester_3_2025/*/ready-for-review/*.tex" \
-            "Trimester_3_2025/*/feedback-to-be-addressed/*.tex" \
-            "Trimester_3_2025/*/qa-failed/*.tex" \
-            "Trimester_3_2025/*/ready-for-final-report/*.tex" \
-            "Trimester_3_2025/*/archived/*.tex" || true)
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
 
-          echo "Found files:"
-          echo "$FILES"
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
 
-          if [ -z "$FILES" ]; then
-            echo "No finding files found."
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files in this PR."
             exit 0
           fi
 
-          for file in $FILES; do
-            PROJECT=$(echo "$file" | cut -d'/' -f2)
-            FILENAME=$(basename "$file")
-            DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
 
-            echo "Moving $file → $DEST"
-            mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-            if [ "$file" != "$DEST" ]; then
-              git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-            else
-              echo "File already in target folder."
+              echo "Moving $file → $DEST"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$file" != "$DEST" ]; then
+                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
+              else
+                echo "File already in target folder."
+              fi
             fi
           done
 
@@ -300,33 +292,31 @@ jobs:
 
       - name: Move finding to archived
         run: |
-          FILES=$(git ls-files \
-            "Trimester_3_2025/*/work-in-progress/*.tex" \
-            "Trimester_3_2025/*/ready-for-review/*.tex" \
-            "Trimester_3_2025/*/feedback-to-be-addressed/*.tex" \
-            "Trimester_3_2025/*/qa-failed/*.tex" \
-            "Trimester_3_2025/*/ready-for-final-report/*.tex" \
-            "Trimester_3_2025/*/archived/*.tex" || true)
+          BASE="${{ github.base_ref }}"
+          git fetch origin "$BASE"
 
-          echo "Found files:"
-          echo "$FILES"
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
 
-          if [ -z "$FILES" ]; then
-            echo "No finding files found."
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No changed files in this PR."
             exit 0
           fi
 
-          for file in $FILES; do
-            PROJECT=$(echo "$file" | cut -d'/' -f2)
-            FILENAME=$(basename "$file")
-            DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
+              PROJECT=$(echo "$file" | cut -d'/' -f2)
+              FILENAME=$(basename "$file")
+              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
 
-            echo "Moving $file → $DEST"
-            mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-            if [ "$file" != "$DEST" ]; then
-              git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-            else
-              echo "File already in target folder."
+              echo "Moving $file → $DEST"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$file" != "$DEST" ]; then
+                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
+              else
+                echo "File already in target folder."
+              fi
             fi
           done
 
