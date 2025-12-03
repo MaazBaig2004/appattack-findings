@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BRANCH_NAME: ${{ github.head_ref }}
+      TARGET_DIR: ready-for-review
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -21,7 +22,7 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Move from work-in-progress → ready-for-review
+      - name: Move finding to ready-for-review
         run: |
           BASE="${{ github.base_ref }}"
           git fetch origin "$BASE"
@@ -31,12 +32,20 @@ jobs:
           echo "$CHANGED_FILES"
 
           for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/work-in-progress/* ]]; then
+            # Any .tex file under Trimester_3_2025/<Project>/...
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
               PROJECT=$(echo "$file" | cut -d'/' -f2)
               FILENAME=$(basename "$file")
-              echo "Moving $FILENAME for project $PROJECT to ready-for-review"
-              mkdir -p "Trimester_3_2025/$PROJECT/ready-for-review"
-              git mv "$file" "Trimester_3_2025/$PROJECT/ready-for-review/$FILENAME"
+              CURRENT_PATH="$file"
+              DEST_PATH="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+
+              echo "Moving $CURRENT_PATH → $DEST_PATH"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$CURRENT_PATH" != "$DEST_PATH" ]; then
+                git mv "$CURRENT_PATH" "$DEST_PATH" || echo "Skipping $CURRENT_PATH (maybe already in target folder)"
+              else
+                echo "File already in target folder, no move needed."
+              fi
             fi
           done
 
@@ -54,6 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BRANCH_NAME: ${{ github.head_ref }}
+      TARGET_DIR: feedback-to-be-addressed
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -61,7 +71,7 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Move from ready-for-review → feedback-to-be-addressed
+      - name: Move finding to feedback-to-be-addressed
         run: |
           BASE="${{ github.base_ref }}"
           git fetch origin "$BASE"
@@ -71,12 +81,19 @@ jobs:
           echo "$CHANGED_FILES"
 
           for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/ready-for-review/* ]]; then
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
               PROJECT=$(echo "$file" | cut -d'/' -f2)
               FILENAME=$(basename "$file")
-              echo "Moving $FILENAME for project $PROJECT to feedback-to-be-addressed"
-              mkdir -p "Trimester_3_2025/$PROJECT/feedback-to-be-addressed"
-              git mv "$file" "Trimester_3_2025/$PROJECT/feedback-to-be-addressed/$FILENAME"
+              CURRENT_PATH="$file"
+              DEST_PATH="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+
+              echo "Moving $CURRENT_PATH → $DEST_PATH"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$CURRENT_PATH" != "$DEST_PATH" ]; then
+                git mv "$CURRENT_PATH" "$DEST_PATH" || echo "Skipping $CURRENT_PATH (maybe already in target folder)"
+              else
+                echo "File already in target folder, no move needed."
+              fi
             fi
           done
 
@@ -94,6 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BRANCH_NAME: ${{ github.head_ref }}
+      TARGET_DIR: qa-failed
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -101,7 +119,7 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Move from ready-for-review → qa-failed
+      - name: Move finding to qa-failed
         run: |
           BASE="${{ github.base_ref }}"
           git fetch origin "$BASE"
@@ -111,12 +129,19 @@ jobs:
           echo "$CHANGED_FILES"
 
           for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/ready-for-review/* ]]; then
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
               PROJECT=$(echo "$file" | cut -d'/' -f2)
               FILENAME=$(basename "$file")
-              echo "Moving $FILENAME for project $PROJECT to qa-failed"
-              mkdir -p "Trimester_3_2025/$PROJECT/qa-failed"
-              git mv "$file" "Trimester_3_2025/$PROJECT/qa-failed/$FILENAME"
+              CURRENT_PATH="$file"
+              DEST_PATH="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+
+              echo "Moving $CURRENT_PATH → $DEST_PATH"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$CURRENT_PATH" != "$DEST_PATH" ]; then
+                git mv "$CURRENT_PATH" "$DEST_PATH" || echo "Skipping $CURRENT_PATH (maybe already in target folder)"
+              else
+                echo "File already in target folder, no move needed."
+              fi
             fi
           done
 
@@ -134,6 +159,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BRANCH_NAME: ${{ github.head_ref }}
+      TARGET_DIR: ready-for-final-report
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -141,7 +167,7 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Move from ready-for-review → ready-for-final-report
+      - name: Move finding to ready-for-final-report
         run: |
           BASE="${{ github.base_ref }}"
           git fetch origin "$BASE"
@@ -151,12 +177,19 @@ jobs:
           echo "$CHANGED_FILES"
 
           for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/ready-for-review/* ]]; then
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
               PROJECT=$(echo "$file" | cut -d'/' -f2)
               FILENAME=$(basename "$file")
-              echo "Moving $FILENAME for project $PROJECT to ready-for-final-report"
-              mkdir -p "Trimester_3_2025/$PROJECT/ready-for-final-report"
-              git mv "$file" "Trimester_3_2025/$PROJECT/ready-for-final-report/$FILENAME"
+              CURRENT_PATH="$file"
+              DEST_PATH="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+
+              echo "Moving $CURRENT_PATH → $DEST_PATH"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$CURRENT_PATH" != "$DEST_PATH" ]; then
+                git mv "$CURRENT_PATH" "$DEST_PATH" || echo "Skipping $CURRENT_PATH (maybe already in target folder)"
+              else
+                echo "File already in target folder, no move needed."
+              fi
             fi
           done
 
@@ -174,6 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BRANCH_NAME: ${{ github.head_ref }}
+      TARGET_DIR: archived
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -181,7 +215,7 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Move from ready-for-final-report → archived
+      - name: Move finding to archived
         run: |
           BASE="${{ github.base_ref }}"
           git fetch origin "$BASE"
@@ -191,12 +225,19 @@ jobs:
           echo "$CHANGED_FILES"
 
           for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/ready-for-final-report/* ]]; then
+            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
               PROJECT=$(echo "$file" | cut -d'/' -f2)
               FILENAME=$(basename "$file")
-              echo "Moving $FILENAME for project $PROJECT to archived"
-              mkdir -p "Trimester_3_2025/$PROJECT/archived"
-              git mv "$file" "Trimester_3_2025/$PROJECT/archived/$FILENAME"
+              CURRENT_PATH="$file"
+              DEST_PATH="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+
+              echo "Moving $CURRENT_PATH → $DEST_PATH"
+              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
+              if [ "$CURRENT_PATH" != "$DEST_PATH" ]; then
+                git mv "$CURRENT_PATH" "$DEST_PATH" || echo "Skipping $CURRENT_PATH (maybe already in target folder)"
+              else
+                echo "File already in target folder, no move needed."
+              fi
             fi
           done
 
