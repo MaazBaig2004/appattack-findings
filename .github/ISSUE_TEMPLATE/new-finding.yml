@@ -1,5 +1,5 @@
 name: New Finding (Auto Generate LaTeX)
-description: Submit a new security finding – LaTeX file and PR will be created automatically
+description: Submit a new security finding - LaTeX file and PR will be created automatically
 title: "[Finding] <attack-type> - <author>"
 labels:
   - work-in-progress
