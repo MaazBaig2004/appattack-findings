@@ -1,4 +1,4 @@
-name: Move finding files based on workflow labels
+name: Move finding file based on workflow label
 
 on:
   pull_request:
@@ -8,19 +8,21 @@ permissions:
   contents: write
   pull-requests: read
 
-# Each job:
-#  - runs when a specific label is added
-#  - finds ONLY the .tex files changed in THIS PR
-#  - moves them to the folder matching TARGET_DIR
-#  - commits & pushes back to the PR branch
-
 jobs:
-  move-to-work-in-progress:
-    if: github.event.label.name == 'work-in-progress'
+  move-finding:
     runs-on: ubuntu-latest
-    env:
-      BRANCH_NAME: ${{ github.head_ref }}
-      TARGET_DIR: work-in-progress
+
+    # Only run for workflow labels we care about
+    if: |
+      contains(fromJson('[
+        "work-in-progress",
+        "ready-for-review",
+        "feedback-to-be-addressed",
+        "qa-failed",
+        "ready-for-final-report",
+        "archived"
+      ]'), github.event.label.name)
+
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -28,302 +30,70 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Move finding to work-in-progress
+      - name: Move the finding file for this label
+        env:
+          LABEL_NAME: ${{ github.event.label.name }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          BASE="${{ github.base_ref }}"
-          git fetch origin "$BASE"
+          set -euo pipefail
+
+          # Map label -> target directory
+          case "$LABEL_NAME" in
+            work-in-progress)        TARGET_DIR="work-in-progress" ;;
+            ready-for-review)        TARGET_DIR="ready-for-review" ;;
+            feedback-to-be-addressed) TARGET_DIR="feedback-to-be-addressed" ;;
+            qa-failed)               TARGET_DIR="qa-failed" ;;
+            ready-for-final-report)  TARGET_DIR="ready-for-final-report" ;;
+            archived)                TARGET_DIR="archived" ;;
+            *) echo "Unhandled label: $LABEL_NAME"; exit 0 ;;
+          esac
+
+          echo "Label: $LABEL_NAME"
+          echo "Target dir: $TARGET_DIR"
+
+          git fetch origin "$BASE_REF"
 
           # Files changed in THIS PR compared to base (e.g. main)
-          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
+          CHANGED_FILES=$(git diff --name-only "origin/$BASE_REF"...HEAD || true)
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No changed files in this PR."
+          # Only consider .tex findings under Trimester_3_2025 (1 or 2 levels deep)
+          TEX_FILES=$(echo "$CHANGED_FILES" | tr ' ' '\n' | grep -E '^Trimester_3_2025/[^/]+/.*\.tex$' || true)
+
+          # Require exactly ONE .tex file to be changed in the PR
+          COUNT=$(echo "$TEX_FILES" | sed '/^\s*$/d' | wc -l | tr -d ' ')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No .tex finding file changed in this PR. Nothing to move."
             exit 0
           fi
+          if [ "$COUNT" -gt 1 ]; then
+            echo "More than one .tex finding file changed in this PR:"
+            echo "$TEX_FILES"
+            echo "Refusing to move because it's ambiguous. Keep 1 finding per PR."
+            exit 1
+          fi
 
-          for file in $CHANGED_FILES; do
-            # Only consider .tex findings under Trimester_3_2025
-            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
-              PROJECT=$(echo "$file" | cut -d'/' -f2)
-              FILENAME=$(basename "$file")
-              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
+          FILE="$TEX_FILES"
+          PROJECT=$(echo "$FILE" | cut -d'/' -f2)
+          FILENAME=$(basename "$FILE")
+          DEST="Trimester_3_2025/$PROJECT/$TARGET_DIR/$FILENAME"
 
-              echo "Moving $file → $DEST"
-              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-              if [ "$file" != "$DEST" ]; then
-                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-              else
-                echo "File already in target folder."
-              fi
-            fi
-          done
+          echo "Moving $FILE → $DEST"
+          mkdir -p "Trimester_3_2025/$PROJECT/$TARGET_DIR"
 
-          if git status --porcelain | grep .; then
-            git config --global user.name "github-actions"
-            git config --global user.email "github-actions@github.com"
-            git commit -m "Move finding to work-in-progress"
-            git push origin HEAD:"$BRANCH_NAME"
+          if [ "$FILE" != "$DEST" ]; then
+            git mv "$FILE" "$DEST"
           else
-            echo "No changes to commit."
-          fi
-
-  move-to-ready-for-review:
-    if: github.event.label.name == 'ready-for-review'
-    runs-on: ubuntu-latest
-    env:
-      BRANCH_NAME: ${{ github.head_ref }}
-      TARGET_DIR: ready-for-review
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-
-      - name: Move finding to ready-for-review
-        run: |
-          BASE="${{ github.base_ref }}"
-          git fetch origin "$BASE"
-
-          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No changed files in this PR."
+            echo "File already in target folder."
             exit 0
           fi
-
-          for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
-              PROJECT=$(echo "$file" | cut -d'/' -f2)
-              FILENAME=$(basename "$file")
-              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
-
-              echo "Moving $file → $DEST"
-              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-              if [ "$file" != "$DEST" ]; then
-                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-              else
-                echo "File already in target folder."
-              fi
-            fi
-          done
 
           if git status --porcelain | grep .; then
             git config --global user.name "github-actions"
             git config --global user.email "github-actions@github.com"
-            git commit -m "Move finding to ready-for-review"
-            git push origin HEAD:"$BRANCH_NAME"
-          else
-            echo "No changes to commit."
-          fi
-
-  move-to-feedback:
-    if: github.event.label.name == 'feedback-to-be-addressed'
-    runs-on: ubuntu-latest
-    env:
-      BRANCH_NAME: ${{ github.head_ref }}
-      TARGET_DIR: feedback-to-be-addressed
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-
-      - name: Move finding to feedback-to-be-addressed
-        run: |
-          BASE="${{ github.base_ref }}"
-          git fetch origin "$BASE"
-
-          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No changed files in this PR."
-            exit 0
-          fi
-
-          for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
-              PROJECT=$(echo "$file" | cut -d'/' -f2)
-              FILENAME=$(basename "$file")
-              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
-
-              echo "Moving $file → $DEST"
-              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-              if [ "$file" != "$DEST" ]; then
-                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-              else
-                echo "File already in target folder."
-              fi
-            fi
-          done
-
-          if git status --porcelain | grep .; then
-            git config --global user.name "github-actions"
-            git config --global user.email "github-actions@github.com"
-            git commit -m "Move finding to feedback-to-be-addressed"
-            git push origin HEAD:"$BRANCH_NAME"
-          else
-            echo "No changes to commit."
-          fi
-
-  move-to-qa-failed:
-    if: github.event.label.name == 'qa-failed'
-    runs-on: ubuntu-latest
-    env:
-      BRANCH_NAME: ${{ github.head_ref }}
-      TARGET_DIR: qa-failed
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-
-      - name: Move finding to qa-failed
-        run: |
-          BASE="${{ github.base_ref }}"
-          git fetch origin "$BASE"
-
-          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No changed files in this PR."
-            exit 0
-          fi
-
-          for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
-              PROJECT=$(echo "$file" | cut -d'/' -f2)
-              FILENAME=$(basename "$file")
-              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
-
-              echo "Moving $file → $DEST"
-              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-              if [ "$file" != "$DEST" ]; then
-                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-              else
-                echo "File already in target folder."
-              fi
-            fi
-          done
-
-          if git status --porcelain | grep .; then
-            git config --global user.name "github-actions"
-            git config --global user.email "github-actions@github.com"
-            git commit -m "Move finding to qa-failed"
-            git push origin HEAD:"$BRANCH_NAME"
-          else
-            echo "No changes to commit."
-          fi
-
-  move-to-ready-for-final:
-    if: github.event.label.name == 'ready-for-final-report'
-    runs-on: ubuntu-latest
-    env:
-      BRANCH_NAME: ${{ github.head_ref }}
-      TARGET_DIR: ready-for-final-report
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-
-      - name: Move finding to ready-for-final-report
-        run: |
-          BASE="${{ github.base_ref }}"
-          git fetch origin "$BASE"
-
-          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No changed files in this PR."
-            exit 0
-          fi
-
-          for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
-              PROJECT=$(echo "$file" | cut -d'/' -f2)
-              FILENAME=$(basename "$file")
-              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
-
-              echo "Moving $file → $DEST"
-              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-              if [ "$file" != "$DEST" ]; then
-                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-              else
-                echo "File already in target folder."
-              fi
-            fi
-          done
-
-          if git status --porcelain | grep .; then
-            git config --global user.name "github-actions"
-            git config --global user.email "github-actions@github.com"
-            git commit -m "Move finding to ready-for-final-report"
-            git push origin HEAD:"$BRANCH_NAME"
-          else
-            echo "No changes to commit."
-          fi
-
-  move-to-archived:
-    if: github.event.label.name == 'archived'
-    runs-on: ubuntu-latest
-    env:
-      BRANCH_NAME: ${{ github.head_ref }}
-      TARGET_DIR: archived
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-
-      - name: Move finding to archived
-        run: |
-          BASE="${{ github.base_ref }}"
-          git fetch origin "$BASE"
-
-          CHANGED_FILES=$(git diff --name-only "origin/$BASE"...HEAD || true)
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No changed files in this PR."
-            exit 0
-          fi
-
-          for file in $CHANGED_FILES; do
-            if [[ "$file" == Trimester_3_2025/*/*.tex || "$file" == Trimester_3_2025/*/*/*.tex ]]; then
-              PROJECT=$(echo "$file" | cut -d'/' -f2)
-              FILENAME=$(basename "$file")
-              DEST="Trimester_3_2025/$PROJECT/${TARGET_DIR}/$FILENAME"
-
-              echo "Moving $file → $DEST"
-              mkdir -p "Trimester_3_2025/$PROJECT/${TARGET_DIR}"
-              if [ "$file" != "$DEST" ]; then
-                git mv "$file" "$DEST" || echo "Skipping $file (maybe already there)"
-              else
-                echo "File already in target folder."
-              fi
-            fi
-          done
-
-          if git status --porcelain | grep .; then
-            git config --global user.name "github-actions"
-            git config --global user.email "github-actions@github.com"
-            git commit -m "Archive finding"
+            git commit -m "Move finding to $TARGET_DIR"
             git push origin HEAD:"$BRANCH_NAME"
           else
             echo "No changes to commit."
