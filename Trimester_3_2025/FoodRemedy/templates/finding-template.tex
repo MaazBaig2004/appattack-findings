@@ -1,73 +1,10 @@
-\documentclass[12pt]{article}
+\section{<<ATTACK_TYPE>>}
 
-\usepackage[margin=2.5cm]{geometry}
-\usepackage{hyperref}
-\usepackage{graphicx}
+\subsection*{Author}
+<<AUTHOR>>
 
-% ===========================
-% AppAttack Finding Template
-% ===========================
+\subsection*{Description}
+<<DESCRIPTION>>
 
-% Naming convention reminder:
-% NAME_FINDINGTYPE_TITLE
-% Example:
-% Maaz_PT_SQLInjection
-% Alice&Bob_SCR_InsecureDeserialization
-
-\begin{document}
-
-% ---------- Metadata ----------
-\title{[PROJECT NAME] - Vulnerability Finding}
-\author{[Your Name]}
-\date{\today}
-
-\maketitle
-
-\section*{Finding ID}
-% Example: FR-001 or APPATTACK-FR-2025-001
-[Enter a unique ID]
-
-\section*{Finding Title}
-[Short title, e.g. SQL Injection in Login Form]
-
-\section*{Type}
-% PT = Penetration Testing, SCR = Secure Code Review
-[PT or SCR]
-
-\section*{Summary}
-[One short paragraph summarising the issue in plain language.]
-
-\section*{Technical Description}
-[Describe the vulnerability in detail. Where is it? How does it work?]
-
-\section*{Steps to Reproduce}
-\begin{enumerate}
-  \item Step 1...
-  \item Step 2...
-  \item Step 3...
-\end{enumerate}
-
-\section*{Evidence}
-[Describe screenshots, logs, or requests/responses. 
-Include \texttt{\textbackslash includegraphics} if you want:]
-
-% \begin{figure}[h]
-%   \centering
-%   \includegraphics[width=0.9\textwidth]{screenshots/example.png}
-%   \caption{Evidence of SQL injection error message}
-% \end{figure}
-
-\section*{Impact}
-[Explain the potential damage: data leakage, account takeover, etc.]
-
-\section*{Risk Rating}
-% You can later standardise this (e.g. CVSS or simple High/Medium/Low)
-[High / Medium / Low with a short justification.]
-
-\section*{Recommendation}
-[How should the devs fix it? Input validation, parameterised queries, etc.]
-
-\section*{References}
-[Links to OWASP pages, docs, etc.]
-
-\end{document}
+\subsection*{Impact}
+<<IMPACT>>
