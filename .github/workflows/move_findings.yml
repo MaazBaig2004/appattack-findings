@@ -4,12 +4,59 @@ on:
   pull_request:
     types: [labeled]
 
+# Default permissions (least privilege)
 permissions:
   contents: write
   pull-requests: read
 
 jobs:
+  enforce-single-workflow-label:
+    runs-on: ubuntu-latest
+    # This job needs to remove labels
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Keep only the newly added workflow label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowLabels = new Set([
+              "work-in-progress",
+              "ready-for-review",
+              "feedback-to-be-addressed",
+              "qa-failed",
+              "ready-for-final-report",
+              "archived"
+            ]);
+
+            const addedLabel = context.payload.label?.name;
+            if (!addedLabel || !workflowLabels.has(addedLabel)) {
+              core.info(`"${addedLabel}" is not a workflow label. Skipping enforcement.`);
+              return;
+            }
+
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = pr.number;
+
+            const existing = (pr.labels || []).map(l => l.name);
+            const toRemove = existing.filter(l => workflowLabels.has(l) && l !== addedLabel);
+
+            core.info(`Added workflow label: ${addedLabel}`);
+            core.info(`Existing workflow labels: ${existing.filter(l => workflowLabels.has(l)).join(", ") || "(none)"}`);
+            core.info(`Removing: ${toRemove.join(", ") || "(none)"}`);
+
+            for (const name of toRemove) {
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number, name });
+              } catch (e) {
+                core.warning(`Could not remove label "${name}": ${e.message}`);
+              }
+            }
+
   move-finding:
+    needs: enforce-single-workflow-label
     runs-on: ubuntu-latest
 
     # Only run for workflow labels we care about
@@ -40,12 +87,12 @@ jobs:
 
           # Map label -> target directory
           case "$LABEL_NAME" in
-            work-in-progress)        TARGET_DIR="work-in-progress" ;;
-            ready-for-review)        TARGET_DIR="ready-for-review" ;;
+            work-in-progress)         TARGET_DIR="work-in-progress" ;;
+            ready-for-review)         TARGET_DIR="ready-for-review" ;;
             feedback-to-be-addressed) TARGET_DIR="feedback-to-be-addressed" ;;
-            qa-failed)               TARGET_DIR="qa-failed" ;;
-            ready-for-final-report)  TARGET_DIR="ready-for-final-report" ;;
-            archived)                TARGET_DIR="archived" ;;
+            qa-failed)                TARGET_DIR="qa-failed" ;;
+            ready-for-final-report)   TARGET_DIR="ready-for-final-report" ;;
+            archived)                 TARGET_DIR="archived" ;;
             *) echo "Unhandled label: $LABEL_NAME"; exit 0 ;;
           esac
 
@@ -59,8 +106,8 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          # Only consider .tex findings under Trimester_3_2025 (1 or 2 levels deep)
-          TEX_FILES=$(echo "$CHANGED_FILES" | tr ' ' '\n' | grep -E '^Trimester_3_2025/[^/]+/.*\.tex$' || true)
+          # Only consider .tex findings under Trimester_3_2025 (project can be any name, rest can be nested)
+          TEX_FILES=$(echo "$CHANGED_FILES" | tr ' ' '\n' | grep -E '^Trimester_3_2025/[^/]+/.+\.tex$' || true)
 
           # Require exactly ONE .tex file to be changed in the PR
           COUNT=$(echo "$TEX_FILES" | sed '/^\s*$/d' | wc -l | tr -d ' ')
