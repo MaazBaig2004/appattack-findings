@@ -1,6 +1,6 @@
 name: New Finding (Auto Generate LaTeX)
-description: Submit a new security finding - LaTeX file and PR will be created automatically
-title: "[Finding] <attack-type> - <author>"
+description: "Submit a new security finding - LaTeX file and PR will be created automatically"
+title: "[Finding] attack-type - author"
 labels:
   - work-in-progress
 
@@ -8,33 +8,33 @@ body:
   - type: input
     id: attack_type
     attributes:
-      label: Attack Type
-      description: Example: SQL Injection, IDOR, Broken Auth
-      placeholder: SQL Injection
+      label: "Attack Type"
+      description: "Example: SQL Injection, IDOR, Broken Auth"
+      placeholder: "SQL Injection"
     validations:
       required: true
 
   - type: input
     id: author
     attributes:
-      label: Author
-      placeholder: Your Name
+      label: "Author"
+      placeholder: "Your Name"
     validations:
       required: true
 
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: Describe the vulnerability
-      placeholder: Detailed description of the issue
+      label: "Description"
+      description: "Describe the vulnerability"
+      placeholder: "Detailed description of the issue"
     validations:
       required: true
 
   - type: textarea
     id: impact
     attributes:
-      label: Impact
-      placeholder: What is the security impact?
+      label: "Impact"
+      placeholder: "What is the security impact?"
     validations:
       required: true
